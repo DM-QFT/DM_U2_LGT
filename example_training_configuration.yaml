@@ -1,0 +1,34 @@
+dm:
+  sde_type: "ve"
+  sde_param: 25.
+  t_max: 1.
+  t_n: 800
+  use_log_spaced_t: True
+  t_log_min: -3
+  t_log_max: 0
+
+network:
+  n_layers: 2
+  channels: [16]
+  kernel_sizes: [2,2]
+  log_time_embedding: False
+  time_embed_dim: 256
+  time_embed_scale: 3.
+  shift_time_embedding: 0.
+
+paths:
+  network_path: ""
+  result_path: "data"
+  retrain: False
+
+training:
+  n_epochs: 500
+  lr: 1.0e-5
+  lr_decay: 0.9999
+  batch_size: 64
+  lambda_term: True
+  ckpt_interval: 50
+  progress_bar: True
+  get_validation_loss: False
+  validation_batch_size: 500
+  training_data_path: "data/U2_beta2_50000samples_with_proj_run4.pt"

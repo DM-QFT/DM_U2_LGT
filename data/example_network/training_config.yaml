@@ -1,0 +1,35 @@
+dm:
+  sde_param: 25.0
+  sde_type: ve
+  t_log_max: 0
+  t_log_min: -4
+  t_max: 1.0
+  t_n: 800
+  use_log_spaced_t: true
+network:
+  channels:
+  - 16
+  kernel_sizes:
+  - 2
+  - 2
+  log_time_embedding: false
+  n_layers: 2
+  shift_time_embedding: 0.0
+  time_embed_dim: 256
+  time_embed_scale: 3.0
+  type: lcnn
+paths:
+  network_path: ''
+  result_path: data/long_paper/final_models
+  retrain: false
+training:
+  batch_size: 64
+  beta_train: 2
+  ckpt_interval: 50
+  get_validation_loss: false
+  lambda_term: true
+  lr: 1.0e-05
+  lr_decay: 0.999
+  n_epochs: 2000
+  progress_bar: false
+  validation_batch_size: 500

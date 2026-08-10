@@ -1,0 +1,20 @@
+maala:
+  n: 100
+  beta: 18.0
+  beta_0: 2.0
+  lattice_size: [16,16]
+  dtau: 5.0e-3
+  n_tau: 1000
+  metropolis_threshold: 0.95
+  analytic_action_step: True
+  return_hist: True
+  return_topo_charge_hist: False
+  save_intermediate_configs: False
+  progress_bar: True
+  n_resample: 1000
+  use_log_spaced_t: True
+
+paths:
+  network_path: "data/example_network/network.pt"
+  network_config_path: "data/example_network/training_config.yaml"
+  result_path: "data"

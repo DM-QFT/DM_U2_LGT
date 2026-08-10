@@ -1,0 +1,12 @@
+sde:
+  n: 500
+  n_steps: 2000
+  lattice_size: [16,16]
+  return_hist: True
+  progress_bar: True
+  n_resample: 1000
+
+paths:
+  network_path: "data/example_network/network.pt"
+  network_config_path: "data/example_network/training_config.yaml"
+  result_path: "data"
