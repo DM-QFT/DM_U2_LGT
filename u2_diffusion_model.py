@@ -237,7 +237,7 @@ class u2_dm():
         acc_rate_hist = {'t': [], 'tau': [], 'acc_rate': []}
 
         if return_hist:
-            observable_hist = {'t': [], 'avg_plaquette': [], 'topo_susc': [], 'q_avg': [], '2x2': [], '3x3': [], "4x4": []}
+            observable_hist = {'t': [], 'avg_plaquette': [], 'topo_susc': [], 'q_avg': [], '2x2': [], '3x3': [], "4x4": [], "creutz_ratio_22": [], "creutz_ratio_44": [], 'o_p': [], 'o_m': [], 'o_diff_op_o': [], 'o_diff_op_om': []}
 
         if return_langevin_hist:
             t_of_hists = []
@@ -317,6 +317,18 @@ class u2_dm():
                 observable_hist['2x2'].append(torch_to_np(loops[0]))
                 observable_hist['3x3'].append(torch_to_np(loops[1]))
                 observable_hist['4x4'].append(torch_to_np(loops[2]))
+                creutz_22 = creutz_ratio(U, r=2, t=2, n_resample=n_resample)
+                creutz_44 = creutz_ratio(U, r=4, t=4, n_resample=n_resample)
+                observable_hist['creutz_ratio_22'].append(creutz_22)
+                observable_hist['creutz_ratio_44'].append(creutz_44)
+                o_p = connected_plaqs_plus(U, n_resample=n_resample)
+                o_m = connected_plaqs_minus(U, n_resample=n_resample)
+                observable_hist['o_p'].append(o_p)
+                observable_hist['o_m'].append(o_m)
+                o_diff_op_o = connected_plaqs_difference_op_o(U, n_resample=n_resample)
+                observable_hist['o_diff_op_o'].append(o_diff_op_o)
+                o_diff_op_om = connected_plaqs_difference_op_om(U, n_resample=n_resample)
+                observable_hist['o_diff_op_om'].append(o_diff_op_om)
 
             if return_langevin_hist and i%10==0:
                 observable_hist['avg_plaquette'] = np.array(observable_hist['avg_plaquette'])
@@ -344,6 +356,12 @@ class u2_dm():
             observable_hist['2x2'] = np.array(observable_hist['2x2'])
             observable_hist['3x3'] = np.array(observable_hist['3x3'])
             observable_hist['4x4'] = np.array(observable_hist['4x4'])
+            observable_hist['creutz_ratio_22'] = np.array(observable_hist['creutz_ratio_22'])
+            observable_hist['creutz_ratio_44'] = np.array(observable_hist['creutz_ratio_44'])
+            observable_hist['o_p'] = np.array(observable_hist['o_p'])
+            observable_hist['o_m'] = np.array(observable_hist['o_m'])
+            observable_hist['o_diff_op_o'] = np.array(observable_hist['o_diff_op_o'])
+            observable_hist['o_diff_op_om'] = np.array(observable_hist['o_diff_op_om'])
             return U, observable_hist, acc_rate_hist
         elif return_langevin_hist:
             return U, hists, t_of_hists, acc_rate_hist
@@ -556,12 +574,36 @@ class u2_dm():
         else:
             return U
 
-    def get_forward_diffusion_hist(self, U_0: torch.Tensor):
-        observable_hist = {'t': [], 'avg_plaquette': [], 'topo_susc': [], 'q_avg': []}
-        
-        for i in range(self.t_n):
+    def get_forward_diffusion_hist(self, U_0: torch.Tensor, n_resample=1000, get_creutz=False):
+        if get_creutz:
+            observable_hist = {'t': [], 'avg_plaquette': [], 'topo_susc': [], 'q_avg': [], 'wilson4x4': [], 'creutz_ratio_22': [], 'creutz_ratio_44': [], 'o_p': [], 'o_m': [], 'o_diff_op_o': [], 'o_diff_op_om': []}
+        else:
+            observable_hist = {'t': [], 'avg_plaquette': [], 'topo_susc': [], 'q_avg': [], 'wilson4x4': []}
+
+        observable_hist['t'].append(torch_to_np(self.t_steps[0]))
+        a, b, c = calc_observables(U_0, give_q_avg=True, n_resample=n_resample)
+        observable_hist['avg_plaquette'].append(torch_to_np(a))
+        observable_hist['topo_susc'].append(torch_to_np(b))
+        observable_hist['q_avg'].append(torch_to_np(c))
+        w44 = calc_wilson_loop_results(U_0, [[4,4]], n_resample=n_resample)
+        observable_hist['wilson4x4'].append(torch_to_np(w44[0]))
+        if get_creutz:
+            creutz_22 = creutz_ratio(U_0, r=2, t=2, n_resample=n_resample)
+            creutz_44 = creutz_ratio(U_0, r=4, t=4, n_resample=n_resample)
+            observable_hist['creutz_ratio_22'].append(creutz_22)
+            observable_hist['creutz_ratio_44'].append(creutz_44)
+            o_p = connected_plaqs_plus(U_0, n_resample=n_resample)
+            o_m = connected_plaqs_minus(U_0, n_resample=n_resample)
+            observable_hist['o_p'].append(o_p)
+            observable_hist['o_m'].append(o_m)
+            o_diff_op_o = connected_plaqs_difference_op_o(U_0, n_resample=n_resample)
+            observable_hist['o_diff_op_o'].append(o_diff_op_o)
+            o_diff_op_om = connected_plaqs_difference_op_om(U_0, n_resample=n_resample)
+            observable_hist['o_diff_op_om'].append(o_diff_op_om)
+
+        epochs = tqdm.tqdm(range(1,self.t_n))
+        for i in epochs:
             p0t_std_batch = torch.ones(U_0.shape[0]) * self.p0t_std[i]
-            print(i)
 
             if self.sde_type=='vp':
                 p0t_mean_factor_batch = torch.ones(U_0.shape[0]) * self.p0t_mean_factor[i]
@@ -571,12 +613,35 @@ class u2_dm():
                 U_t = self.diffusion_step(U_0, p0t_std_batch)
             
             observable_hist['t'].append(torch_to_np(self.t_steps[i]))
-            a, b, c = calc_observables(U_t, give_q_avg=True)
+            a, b, c = calc_observables(U_t, give_q_avg=True, n_resample=n_resample)
             observable_hist['avg_plaquette'].append(torch_to_np(a))
             observable_hist['topo_susc'].append(torch_to_np(b))
             observable_hist['q_avg'].append(torch_to_np(c))
+            w44 = calc_wilson_loop_results(U_t, [[4,4]], n_resample=n_resample)
+            observable_hist['wilson4x4'].append(torch_to_np(w44[0]))
+            if get_creutz:
+                creutz_22 = creutz_ratio(U_t, r=2, t=2, n_resample=n_resample)
+                creutz_44 = creutz_ratio(U_t, r=4, t=4, n_resample=n_resample)
+                observable_hist['creutz_ratio_22'].append(creutz_22)
+                observable_hist['creutz_ratio_44'].append(creutz_44)
+                o_p = connected_plaqs_plus(U_t, n_resample=n_resample)
+                o_m = connected_plaqs_minus(U_t, n_resample=n_resample)
+                observable_hist['o_p'].append(o_p)
+                observable_hist['o_m'].append(o_m)
+                o_diff_op_o = connected_plaqs_difference_op_o(U_t, n_resample=n_resample)
+                observable_hist['o_diff_op_o'].append(o_diff_op_o)
+                o_diff_op_om = connected_plaqs_difference_op_om(U_t, n_resample=n_resample)
+                observable_hist['o_diff_op_om'].append(o_diff_op_om)
         
         observable_hist['avg_plaquette'] = np.array(observable_hist['avg_plaquette'])
         observable_hist['topo_susc'] = np.array(observable_hist['topo_susc'])
         observable_hist['q_avg'] = np.array(observable_hist['q_avg'])
+        observable_hist['wilson4x4'] = np.array(observable_hist['wilson4x4'])
+        if get_creutz:
+            observable_hist['creutz_ratio_22'] = np.array(observable_hist['creutz_ratio_22'])
+            observable_hist['creutz_ratio_44'] = np.array(observable_hist['creutz_ratio_44'])
+            observable_hist['o_p'] = np.array(observable_hist['o_p'])
+            observable_hist['o_m'] = np.array(observable_hist['o_m'])
+            observable_hist['o_diff_op_o'] = np.array(observable_hist['o_diff_op_o'])
+            observable_hist['o_diff_op_om'] = np.array(observable_hist['o_diff_op_om'])
         return observable_hist
