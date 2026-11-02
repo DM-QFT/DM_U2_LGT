@@ -287,6 +287,112 @@ def calc_wilson_loop_results(U: torch.Tensor,  loop_sizes: list[int], n_resample
         results.append([w_m, w_std])
     return results
 
+def creutz_ratio(U: torch.Tensor,  r: int, t: int, n_resample=10000):
+    w_rt = avg_wilson_loop(U, r, t)
+    w_rmtm = avg_wilson_loop(U, r-1, t-1)
+    w_rmt = avg_wilson_loop(U, r-1, t)
+    w_rtm = avg_wilson_loop(U, r, t-1)
+
+    def bootstrap_function_creutz(values):
+        w_rt = values[:,0]
+        w_rmtm = values[:,1]
+        w_rmt = values[:,2]
+        w_rtm = values[:,3]
+
+        return torch.log(w_rmt.mean()) + torch.log(w_rtm.mean()) - torch.log(w_rt.mean()) - torch.log(w_rmtm.mean())
+
+    bootstrap_values = torch.stack((w_rt, w_rmtm, w_rmt, w_rtm), dim=-1)
+
+    creutz_m, creutz_std = bootstrap(bootstrap_function_creutz, bootstrap_values, n_resample=n_resample)
+    return creutz_m, creutz_std
+
+def connected_plaqs_plus(U: torch.Tensor, n_resample=10000):
+    plaquettes = wilson_loop(U,1,1)
+    traced_plaquettes = plaquettes[...,0,0] + plaquettes[...,1,1]
+    shift_x = torch.roll(traced_plaquettes, -1, dims=1)
+    shift_y = torch.roll(traced_plaquettes, -1, dims=2)
+
+    mean_x = torch.mean((traced_plaquettes * shift_x).real, dim=(1,2)) / 4.
+    mean_y = torch.mean((traced_plaquettes * shift_y).real, dim=(1,2)) / 4.
+
+    o_plus = (mean_x + mean_y) / 2.
+
+    o_plus_m, o_plus_std = bootstrap(bootstrap_mean, o_plus, n_resample=n_resample)
+    return o_plus_m, o_plus_std
+
+def connected_plaqs_minus(U: torch.Tensor, n_resample=10000):
+    plaquettes = wilson_loop(U,1,1)
+    traced_plaquettes = plaquettes[...,0,0] + plaquettes[...,1,1]
+
+    plaquettes_dagger = dagger(plaquettes)
+    traced_plaquettes_dagger = plaquettes_dagger[...,0,0] + plaquettes_dagger[...,1,1]
+    shift_x = torch.roll(traced_plaquettes_dagger, -1, dims=1)
+    shift_y = torch.roll(traced_plaquettes_dagger, -1, dims=2)
+
+    mean_x = torch.mean((traced_plaquettes * shift_x).real, dim=(1,2)) / 4.
+    mean_y = torch.mean((traced_plaquettes * shift_y).real, dim=(1,2)) / 4.
+
+    o_minus = (mean_x + mean_y) / 2.
+
+    o_minus_m, o_minus_std = bootstrap(bootstrap_mean, o_minus, n_resample=n_resample)
+    return o_minus_m, o_minus_std
+
+def connected_plaqs_difference_op_o(U: torch.Tensor, n_resample=10000):
+    plaquettes = wilson_loop(U,1,1)
+    traced_plaquettes = plaquettes[...,0,0] + plaquettes[...,1,1]
+
+    shift_x_p = torch.roll(traced_plaquettes, -1, dims=1)
+    shift_y_p = torch.roll(traced_plaquettes, -1, dims=2)
+    
+    mean_x_p = torch.mean((traced_plaquettes * shift_x_p).real, dim=(1,2)) / 4.
+    mean_y_p = torch.mean((traced_plaquettes * shift_y_p).real, dim=(1,2)) / 4.
+    
+    o_plus = (mean_x_p + mean_y_p) / 2.
+
+    plaq_mean = torch.mean((traced_plaquettes).real, dim=(1,2)) / 2.
+
+    def bootstrap_function(values):
+        o_p = values[:,0]
+        o = values[:,1]
+        return o_p.mean() - (o.mean())**2
+
+    bootstrap_values = torch.stack((o_plus, plaq_mean), dim=-1)
+
+    o_diff_m, o_diff_std = bootstrap(bootstrap_function, bootstrap_values, n_resample=n_resample)
+    return o_diff_m, o_diff_std
+
+def connected_plaqs_difference_op_om(U: torch.Tensor, n_resample=10000):
+    plaquettes = wilson_loop(U,1,1)
+    traced_plaquettes = plaquettes[...,0,0] + plaquettes[...,1,1]
+
+    shift_x_p = torch.roll(traced_plaquettes, -1, dims=1)
+    shift_y_p = torch.roll(traced_plaquettes, -1, dims=2)
+    
+    mean_x_p = torch.mean((traced_plaquettes * shift_x_p).real, dim=(1,2)) / 4.
+    mean_y_p = torch.mean((traced_plaquettes * shift_y_p).real, dim=(1,2)) / 4.
+    
+    o_plus = (mean_x_p + mean_y_p) / 2.
+
+    plaquettes_dagger = dagger(plaquettes)
+    traced_plaquettes_dagger = plaquettes_dagger[...,0,0] + plaquettes_dagger[...,1,1]
+    shift_x_m = torch.roll(traced_plaquettes_dagger, -1, dims=1)
+    shift_y_m = torch.roll(traced_plaquettes_dagger, -1, dims=2)
+
+    mean_x_m = torch.mean((traced_plaquettes * shift_x_m).real, dim=(1,2)) / 4.
+    mean_y_m = torch.mean((traced_plaquettes * shift_y_m).real, dim=(1,2)) / 4.
+
+    o_minus = (mean_x_m + mean_y_m) / 2.
+
+    def bootstrap_function(values):
+        o_p = values[:,0]
+        o_m = values[:,1]
+        return o_p.mean() - o_m.mean()
+
+    bootstrap_values = torch.stack((o_plus, o_minus), dim=-1)
+
+    o_diff_m, o_diff_std = bootstrap(bootstrap_function, bootstrap_values, n_resample=n_resample)
+    return o_diff_m, o_diff_std
+
 def project_to_unitarity(U: torch.Tensor) -> torch.Tensor:
     a = U[:,:,:,:,0,:].clone()
     b = U[:,:,:,:,1,:].clone()
