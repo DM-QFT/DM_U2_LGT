@@ -1,5 +1,5 @@
 # DM_U2_LGT
-Code for the paper "Generalizable Equivariant Diffusion Models for Non-Abelian Lattice Gauge Theory", [arXiv:2601.19552](https://arxiv.org/abs/2601.19552).
+Code for the papers "Generalizable Equivariant Diffusion Models for Non-Abelian Lattice Gauge Theory", [arXiv:2601.19552](https://arxiv.org/abs/2601.19552) and "Generalizable Equivariant Diffusion Models for Non-Abelian Lattice Gauge Theory: Analytical Foundations and Numerical Scaling Tests", [arXiv:2611.03530](https://arxiv.org/abs/2611.03530).
 
 Diffusion model for U(2) lattice gauge theory in 2D. Can be used to train an L-CNN using score matching, and then generate field configurations using either the reverse stochastic differential equation (SDE) or the Metropolis-adjusted annealed Langevin algorithm (MAALA).
 
